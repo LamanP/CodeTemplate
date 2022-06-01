@@ -100,6 +100,7 @@ type
 
   TCodeTemplate = class(TInterfacedObject, ICodeTemplate)
   private
+    FPersist: string;
     FParameters: TList;
     FCodeSections: TList;
     procedure DestroyList(var List: TList);
@@ -252,6 +253,7 @@ resourcestring
   SSectionNameMissing = 'Section name missing';
   SUnsupportedSectionId = 'Unsupported section ID: ''%s''';
   SParameterNameMissing = 'Parameter name missing';
+  SInvalidPersistenceDeclaration = 'Invalid persistence declaration';
 var
   I: Integer;
   Line: string;
@@ -335,6 +337,12 @@ begin // Parse
            ParseParameter
          else if SameText(SectionData.SectionArgs[0], 'code') then
            ParseCodeSection
+         else if SameText(SectionData.SectionArgs[0], 'persist') then
+           begin
+             if Length(SectionData.SectionArgs) < 2 then
+               raise ETemplateSyntaxError.Create(SInvalidPersistenceDeclaration, I);
+             FPersist := SectionData.SectionArgs[1];
+           end
          else
            raise ETemplateSyntaxError.Create(SUnsupportedSectionId, I, [SectionData.SectionArgs[0]]);
      end;

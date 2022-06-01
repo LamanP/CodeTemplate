@@ -1,3 +1,4 @@
+#persist:Delphi
 #parameter:Class:string
 #parameter:Singular Name:string
 #parameter:Plural Name:string
