@@ -1,6 +1,9 @@
-#persist:Delphi
+#keyfile:keys.txt
+#key:delphi.class
 #parameter:Class:string
+#key:delphi.property.name
 #parameter:Name:string
+#key:delphi.datatype
 #parameter:Data type:string
 #code:Field var/Getter/Setter (Decl)
     F${Name}: ${Data type};

@@ -49,6 +49,7 @@ type
     FParameterFrames: TObjectList<TParameterFrame>;
     FCodeSecSheets: TObjectList<TCodeTabSheet>;
     FTemplateModified: Boolean;
+    procedure ApplicationDeactivate(Sender: TObject);
     procedure LoadTemplateFile(const FileName: string);
     procedure DisplayTemplate(Text: string);
     procedure SyntaxHighlight(const Pattern: string; const Color: TColor);
@@ -59,6 +60,8 @@ type
     procedure SetTemplateModified(const Value: Boolean);
     procedure ResolveAll;
     procedure LoadTemplate(const TemplateSource: TStrings);
+    procedure SaveParameterHistory;
+    function GetParameterHistoryFileName(const CreateFolder: Boolean): string;
     property TemplateModified: Boolean read FTemplateModified write SetTemplateModified;
   public
     constructor Create(Owner: TComponent); override;
@@ -107,7 +110,7 @@ end;
 
 procedure TCodeTabSheet.CopyToClipboard(Sender: TObject);
 begin
-  Clipboard.AsText := FRichEdit.Text;
+  Clipboard.AsText := FRichEdit.Text + #13#10;
 end;
 
 constructor TCodeTabSheet.Create(PageControl: TPageControl; CodeSec: ICodeSection);
@@ -186,6 +189,7 @@ begin
   inherited;
   FParameterFrames := TObjectList<TParameterFrame>.Create(True);
   FCodeSecSheets := TObjectList<TCodeTabSheet>.Create(True);
+  Application.OnDeactivate := ApplicationDeactivate;
 end;
 
 destructor TMainForm.Destroy;
@@ -288,7 +292,7 @@ end;
 procedure TMainForm.LoadTemplate(const TemplateSource: TStrings);
 begin
   LabelTemplateFileName.Caption := '';
-  FTemplate := ParseCodeTemplate(TemplateSource);
+  FTemplate := ParseCodeTemplate(TemplateSource, OpenDialogTemplate.FileName);
   DisplayTemplate(TemplateSource.Text);
   DisplayParameters;
   DisplayCodeSections;
@@ -359,6 +363,46 @@ procedure TMainForm.RETemplateChange(Sender: TObject);
 begin
   TimerSyntaxHighlight.Enabled := True;
   TemplateModified := True;
+end;
+
+procedure TMainForm.ApplicationDeactivate(Sender: TObject);
+begin
+  SaveParameterHistory;
+end;
+
+function TMainForm.GetParameterHistoryFileName(const CreateFolder: Boolean): string;
+var
+  HistoryFolder: string;
+begin
+  HistoryFolder := GetEnvironmentVariable('APPDATA') +
+    '\Competer\CodeTemplates\History\' +
+    StringReplace(ExtractFilePath(OpenDialogTemplate.FileName), ':','', [rfReplaceAll]);
+  ForceDirectories(ExtractFilePath(HistoryFolder));
+  Result := ExcludeTrailingPathDelimiter(HistoryFolder) + '.hist';
+end;
+
+procedure TMainForm.SaveParameterHistory;
+var
+  I: Integer;
+  Param: IParameter;
+  KeySet: IKeySet;
+  Key: IKey;
+  Writer: IKeyHistoryWriter;
+begin
+  if not Assigned(FTemplate) then Exit;
+
+  KeySet := FTemplate.KeySet;
+  for I := 0 to FParameterFrames.Count - 1 do
+  begin
+    Param := FParameterFrames[I].Parameter;
+    Key := KeySet.FindKey(Param.Key);
+    if Assigned(Key) then
+      Key.AddRecentItem(Param.Value);
+  end;
+
+  // Determine history file name
+  Writer := CreateKeyHistoryFileWriter(GetParameterHistoryFileName(True));
+  Writer.Write(FTemplate);
 end;
 
 end.
