@@ -5,3 +5,8 @@
 #key:delphi.property.name.plural
 #key:delphi.datatype
 #key:delphi.indextype
+
+#key:delphi.method.name
+#key:delphi.method.args
+
+#key:delphi.method.resultType

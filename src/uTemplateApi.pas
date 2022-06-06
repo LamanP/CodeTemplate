@@ -7,6 +7,7 @@ uses
 
 type
   IKeySet = interface;
+  IKey = interface;
   ETemplateSyntaxError = class(Exception)
   public
     constructor Create(const Fmt: string; const LineIndex: Integer; const Args: array of const); overload;
@@ -20,13 +21,13 @@ type
     function GetDefaultString: string;
     function GetValue: string;
     procedure SetValue(const Value: string);
-    function GetKey: string;
+    function GetKey: IKey;
 
     property Name: string read GetName;
     property DataType: string read GetDataType;
     property DefaultString: string read GetDefaultString;
     property Value: string read GetValue write SetValue;
-    property Key: string read GetKey;
+    property Key: IKey read GetKey;
   end;
 
   ICodeSection = interface(IUnknown)
@@ -120,22 +121,23 @@ type
 
   TParameter = class(TContainedObject, IParameter)
   private
+    FCodeTemplate: TCodeTemplate;
     FName: string;
     FDataType: string;
     FDefaultString: string;
     FValue: string;
-    FKey: string;
+    FKey: IKey;
   protected
     function GetName: string;
     function GetDataType: string;
     function GetDefaultString: string;
     function GetValue: string;
-    function GetKey: string;
+    function GetKey: IKey;
     procedure SetValue(const Value: string);
   public
-    constructor Create(Controller: IUnknown; const Name: string;
+    constructor Create(CodeTemplate: TCodeTemplate; const Name: string;
       const DataType: string; const DefaultString: string;
-      const Key: string); reintroduce;
+      const Key: IKey); reintroduce;
     destructor Destroy; override;
   end;
 
@@ -155,7 +157,7 @@ type
 
   TCodeTemplate = class(TInterfacedObject, ICodeTemplate)
   private
-    FPersist: string;
+    FKey: IKey;
     FParameters: TList;
     FCodeSections: TList;
     FKeySet: TKeySet;
@@ -264,16 +266,16 @@ end;
 
 { TParameter }
 
-constructor TParameter.Create(Controller: IUnknown; const Name: string;
-  const DataType: string; const DefaultString: string;
-  const Key: string);
+constructor TParameter.Create(CodeTemplate: TCodeTemplate; const Name: string;
+  const DataType: string; const DefaultString: string; const Key: IKey);
 begin
-  inherited Create(Controller);
-    FName := Name;
-    FDataType := DataType;
-    FDefaultString := DefaultString;
-    FValue := DefaultString;
-    FKey := Key;
+  inherited Create(CodeTemplate);
+  FCodeTemplate := CodeTemplate;
+  FName := Name;
+  FDataType := DataType;
+  FDefaultString := DefaultString;
+  FValue := DefaultString;
+  FKey := Key;
 end;
 
 destructor TParameter.Destroy;
@@ -291,7 +293,7 @@ begin
   Result := FDefaultString;
 end;
 
-function TParameter.GetKey: string;
+function TParameter.GetKey: IKey;
 begin
   Result := FKey;
 end;
@@ -389,6 +391,8 @@ resourcestring
   SParameterNameMissing = 'Parameter name missing';
   SKeyNameMissing = 'Key name missing';
   SKeyFileNameMissing = 'Key file name missing';
+  SUndefinedKey = 'Key "%s" in the reference key file, or no key file has been referenced';
+  SDefaultParameterType = 'string';
 var
   I: Integer;
   Line: string;
@@ -397,7 +401,6 @@ var
   procedure ParseParameter;
   resourcestring
     SParameterNameMissing = 'Parameter name missing';
-    SParameterTypeMissing = 'Parameter type missing';
   var
     ParamName,
     ParamType,
@@ -407,13 +410,14 @@ var
       raise ETemplateSyntaxError.Create(SParameterNameMissing, I);
     ParamName := SectionData.SectionArgs[1];
     if SectionData.Count < 3 then
-      raise ETemplateSyntaxError.Create(SParameterTypeMissing, I);
-    ParamType := SectionData.SectionArgs[2];
+      ParamType := SDefaultParameterType
+    else
+      ParamType := SectionData.SectionArgs[2];
     if SectionData.Count > 3 then
       ParamDefault := SectionData.SectionArgs[3]
     else
       ParamDefault := '';
-    FParameters.Add(TParameter.Create(Self, ParamName, ParamType, ParamDefault, FPersist));
+    FParameters.Add(TParameter.Create(Self, ParamName, ParamType, ParamDefault, FKey));
   end;
 
   procedure ParseCodeSection;
@@ -455,6 +459,21 @@ var
   end;
 
 begin // Parse
+   // We must load a key file before loading parameters. So, first see if there
+   // is a keyfile declared.
+   for I := 0 to Template.Count - 1 do
+   begin
+     Line := Template[I];
+     if SameText(Copy(Line, 1, 9), '#keyfile:') then
+     begin
+       SplitSectionData(Copy(Line, 2, Length(Line)), SectionData);
+       if Length(SectionData.SectionArgs) < 2 then
+         raise ETemplateSyntaxError.Create(SKeyFileNameMissing, I);
+       LoadKeys(SectionData.SectionArgs[1], ExtractFilePath(FFileName));
+       Break;
+     end;
+   end;
+
    I := 0;
    while I < Template.Count do
    begin
@@ -476,14 +495,12 @@ begin // Parse
            begin
              if Length(SectionData.SectionArgs) < 2 then
                raise ETemplateSyntaxError.Create(SKeyNameMissing, I);
-             FPersist := SectionData.SectionArgs[1];
+             FKey := FKeySet.FindKey(SectionData.SectionArgs[1]);
+             if not Assigned(FKey) then
+               raise ETemplateSyntaxError.Create(SUndefinedKey, I, [SectionData.SectionArgs[1]]);
            end
          else if SameText(SectionData.SectionArgs[0], 'keyfile') then
-           begin
-             if Length(SectionData.SectionArgs) < 2 then
-               raise ETemplateSyntaxError.Create(SKeyFileNameMissing, I);
-             LoadKeys(SectionData.SectionArgs[1], ExtractFilePath(FFileName));
-           end
+           // Ignore, because we already loaded the key file
          else
            raise ETemplateSyntaxError.Create(SUnsupportedSectionId, I, [SectionData.SectionArgs[0]]);
      end;
@@ -751,9 +768,7 @@ begin //Write
       Key := KeySet[I];
       Data.Add(Key.Name);
       for J := 0 to Key.RecentItemCount - 1 do
-      begin
-        Data.Add(#255+Key[J]);
-      end;
+        Data.Add('#'+Key[J]);
     end;
     Data.SaveToFile(FFileName);
   finally
@@ -787,7 +802,7 @@ begin
       Line := Data[I];
       if Length(Line) > 0 then
       begin
-        if Line[1] = #255 then // It's a recent file
+        if Line[1] = '#' then // It's a recent file
           begin
             if Assigned(Key) then
               Key.AddRecentItem(Copy(Line, 2, Length(Line) - 1))

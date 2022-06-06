@@ -9,8 +9,11 @@ uses
 
 type
   TStringParameterFrame = class(TParameterFrame)
-    EditValue: TEdit;
-    procedure EditValueChange(Sender: TObject);
+    ComboValue: TComboBox;
+    procedure ComboValueChange(Sender: TObject);
+  protected
+    procedure LoadHistory(const History: TStrings); override;
+    procedure ParameterToControl(const Value: string); override;
   public
     constructor Create(Parameter: IParameter); override;
   end;
@@ -27,13 +30,31 @@ implementation
 constructor TStringParameterFrame.Create(Parameter: IParameter);
 begin
   inherited;
-  EditValue.Text := Parameter.DefaultString;
+  ComboValue.Text := Parameter.DefaultString;
 end;
 
-procedure TStringParameterFrame.EditValueChange(Sender: TObject);
+procedure TStringParameterFrame.ComboValueChange(Sender: TObject);
 begin
   inherited;
-  SetValue(EditValue.Text);
+  ControlToParameter(ComboValue.Text);
+end;
+
+procedure TStringParameterFrame.LoadHistory(const History: TStrings);
+begin
+  ComboValue.items.Assign(History);
+end;
+
+procedure TStringParameterFrame.ParameterToControl(const Value: string);
+var
+  I: Integer;
+begin
+  I := ComboValue.Items.IndexOf(Value);
+  if I < 0 then
+    ComboValue.Text := Value
+  else
+    ComboValue.ItemIndex := I;
+  ComboValue.SelLength := 0;
+  ControlToParameter(Value);
 end;
 
 end.

@@ -45,6 +45,7 @@ type
     procedure TabSheetTemplateShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
+    FLoadingTemplate:Byte;
     FTemplate: ICodeTemplate;
     FParameterFrames: TObjectList<TParameterFrame>;
     FCodeSecSheets: TObjectList<TCodeTabSheet>;
@@ -62,6 +63,7 @@ type
     procedure LoadTemplate(const TemplateSource: TStrings);
     procedure SaveParameterHistory;
     function GetParameterHistoryFileName(const CreateFolder: Boolean): string;
+    procedure LoadParameterHistory;
     property TemplateModified: Boolean read FTemplateModified write SetTemplateModified;
   public
     constructor Create(Owner: TComponent); override;
@@ -291,11 +293,17 @@ end;
 
 procedure TMainForm.LoadTemplate(const TemplateSource: TStrings);
 begin
-  LabelTemplateFileName.Caption := '';
-  FTemplate := ParseCodeTemplate(TemplateSource, OpenDialogTemplate.FileName);
-  DisplayTemplate(TemplateSource.Text);
-  DisplayParameters;
-  DisplayCodeSections;
+  Inc(FLoadingTemplate);
+  try
+    LabelTemplateFileName.Caption := '';
+    FTemplate := ParseCodeTemplate(TemplateSource, OpenDialogTemplate.FileName);
+    DisplayTemplate(TemplateSource.Text);
+    LoadParameterHistory;
+    DisplayParameters;
+    DisplayCodeSections;
+  finally
+    Dec(FLoadingTemplate);
+  end;
 end;
 
 procedure TMainForm.ParameterValueChange(Sender: TObject);
@@ -361,8 +369,11 @@ end;
 
 procedure TMainForm.RETemplateChange(Sender: TObject);
 begin
-  TimerSyntaxHighlight.Enabled := True;
-  TemplateModified := True;
+  if FLoadingTemplate = 0 then
+  begin
+    TimerSyntaxHighlight.Enabled := True;
+    TemplateModified := True;
+  end;
 end;
 
 procedure TMainForm.ApplicationDeactivate(Sender: TObject);
@@ -395,14 +406,26 @@ begin
   for I := 0 to FParameterFrames.Count - 1 do
   begin
     Param := FParameterFrames[I].Parameter;
-    Key := KeySet.FindKey(Param.Key);
-    if Assigned(Key) then
+    Key := Param.Key;
+    if Assigned(Key) and (Length(Param.Value) > 0) then
       Key.AddRecentItem(Param.Value);
   end;
 
   // Determine history file name
   Writer := CreateKeyHistoryFileWriter(GetParameterHistoryFileName(True));
   Writer.Write(FTemplate);
+end;
+
+procedure TMainForm.LoadParameterHistory;
+var
+  HistFileName: string;
+  Reader: IKeyHistoryReader;
+begin
+  HistFileName := GetParameterHistoryFileName(False);
+  if not FileExists(HistFileName) then
+    Exit;
+  Reader := CreateKeyHistoryFileReader(HistFileName);
+  Reader.Read(FTemplate);
 end;
 
 end.
