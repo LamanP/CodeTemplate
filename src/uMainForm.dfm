@@ -105,7 +105,7 @@ object MainForm: TMainForm
           797
           41)
         object LabelModified: TLabel
-          Left = 608
+          Left = 454
           Top = 16
           Width = 40
           Height = 13
@@ -113,13 +113,22 @@ object MainForm: TMainForm
           Visible = False
         end
         object Button2: TButton
-          Left = 672
+          Left = 539
+          Top = 9
+          Width = 117
+          Height = 25
+          Action = ActionApplyEdits
+          Anchors = [akTop, akRight]
+          TabOrder = 0
+        end
+        object Button3: TButton
+          Left = 671
           Top = 9
           Width = 117
           Height = 25
           Action = ActionSaveTemplate
           Anchors = [akTop, akRight]
-          TabOrder = 0
+          TabOrder = 1
         end
       end
     end
@@ -134,6 +143,11 @@ object MainForm: TMainForm
       Caption = 'Save template...'
       OnExecute = ActionSaveTemplateExecute
       OnUpdate = ActionSaveTemplateUpdate
+    end
+    object ActionApplyEdits: TAction
+      Caption = 'Apply edits'
+      OnExecute = ActionApplyEditsExecute
+      OnUpdate = ActionApplyEditsUpdate
     end
   end
   object OpenDialogTemplate: TOpenDialog
@@ -151,7 +165,7 @@ object MainForm: TMainForm
   end
   object TimerSyntaxHighlight: TTimer
     Enabled = False
-    Interval = 200
+    Interval = 500
     OnTimer = TimerSyntaxHighlightTimer
     Left = 448
     Top = 8

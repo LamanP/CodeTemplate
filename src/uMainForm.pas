@@ -37,6 +37,8 @@ type
     TimerSyntaxHighlight: TTimer;
     LabelModified: TLabel;
     LabelTemplateFileName: TLabel;
+    ActionApplyEdits: TAction;
+    Button3: TButton;
     procedure ActionOpenTemplateExecute(Sender: TObject);
     procedure ActionSaveTemplateExecute(Sender: TObject);
     procedure ActionSaveTemplateUpdate(Sender: TObject);
@@ -44,6 +46,8 @@ type
     procedure TimerSyntaxHighlightTimer(Sender: TObject);
     procedure TabSheetTemplateShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure ActionApplyEditsExecute(Sender: TObject);
+    procedure ActionApplyEditsUpdate(Sender: TObject);
   private
     FLoadingTemplate:Byte;
     FTemplate: ICodeTemplate;
@@ -79,6 +83,10 @@ implementation
 
 uses uBooleanParameterFrame, uStringParameterFrame, System.RegularExpressions, WinApi.RichEdit, Clipbrd;
 
+const
+  EM_GETSCROLLPOS=1245;
+  EM_SETSCROLLPOS=1246;
+
 type
   IDontModify = interface(IUnknown)
     ['{AD5523CD-9DB0-40ED-8CBB-F7AABA5B0452}']
@@ -88,23 +96,42 @@ type
   private
     FMainForm: TMainForm;
     FSavedModified: Boolean;
+    FSavePosition: Boolean;
+    FScrollPos: TPoint;
+    FSelection: record
+      First, After: DWORD;
+    end;
+    FActiveControl: TWinControl;
   public
-    constructor Create(const AMainForm: TMainForm); reintroduce;
+    constructor Create(const AMainForm: TMainForm; const ASavePosition: Boolean); reintroduce;
     destructor Destroy; override;
   end;
 
 { TDontModify }
 
-constructor TDontModify.Create(const AMainForm: TMainForm);
+constructor TDontModify.Create(const AMainForm: TMainForm; const ASavePosition: Boolean);
 begin
   inherited Create;
   FMainForm := AMainForm;
   FSavedModified := FMainForm.TemplateModified;
+  FSavePosition := ASavePosition;
+  if FSavePosition then
+  begin
+    FMainForm.RETemplate.Perform(EM_GETSCROLLPOS, 0, Cardinal(@FScrollPos));
+    FMainForm.RETemplate.Perform(EM_GETSEL, Cardinal(@FSelection.First), Cardinal(@FSelection.After));
+    FActiveControl := FMainForm.ActiveControl;
+  end;
 end;
 
 destructor TDontModify.Destroy;
 begin
   FMainForm.TemplateModified := FSavedModified;
+  if FSavePosition then
+  begin
+    FMainForm.ActiveControl := FActiveControl;
+    FMainForm.RETemplate.Perform(EM_SETSEL, FSelection.First, FSelection.After);
+    FMainForm.RETemplate.Perform(EM_SETSCROLLPOS, 0, Cardinal(@FScrollPos));
+  end;
   inherited;
 end;
 
@@ -177,7 +204,21 @@ end;
 
 procedure TMainForm.ActionSaveTemplateUpdate(Sender: TObject);
 begin
-  ActionSaveTemplate.Enabled := TemplateModified;
+  ActionSaveTemplate.Enabled := RETemplate.GetTextLen > 0;
+end;
+
+procedure TMainForm.ActionApplyEditsExecute(Sender: TObject);
+var
+  PageIndex: Integer;
+begin
+  PageIndex := PageControlTemplate.ActivePageIndex;
+  LoadTemplate(RETemplate.Lines);
+  PageControlTemplate.ActivePageIndex := PageIndex;
+end;
+
+procedure TMainForm.ActionApplyEditsUpdate(Sender: TObject);
+begin
+  (Sender as TAction).Enabled := TemplateModified;
 end;
 
 procedure TMainForm.ActionOpenTemplateExecute(Sender: TObject);
@@ -205,7 +246,7 @@ procedure TMainForm.SyntaxHighlights;
 var
   DontModify: IDontModify;
 begin
-  DontModify := TDontModify.Create(Self);
+  DontModify := TDontModify.Create(Self, True);
   SyntaxHighlight('\#[\w0-9 ]+\:', clGreen);
   SyntaxHighlight('\$\{[\w0-9 ]+\}', clBlue);
 end;
@@ -250,15 +291,11 @@ end;
 
 procedure TMainForm.TimerSyntaxHighlightTimer(Sender: TObject);
 var
-  PageIndex: Integer;
   DontModify: IDontModify;
 begin
-  DontModify := TDontModify.Create(Self);
-  SyntaxHighlights;
-  PageIndex := PageControlTemplate.ActivePageIndex;
-  LoadTemplate(RETemplate.Lines);
-  PageControlTemplate.ActivePageIndex := PageIndex;
   TimerSyntaxHighlight.Enabled := False;
+  DontModify := TDontModify.Create(Self, True);
+  SyntaxHighlights;
 end;
 
 procedure TMainForm.DisplayTemplate(Text: string);

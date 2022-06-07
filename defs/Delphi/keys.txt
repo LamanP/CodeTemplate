@@ -1,5 +1,6 @@
 #maxhistory:5
 #key:delphi.class
+#key:delphi.exception.class
 #key:delphi.property.name
 #key:delphi.property.name.singular
 #key:delphi.property.name.plural
@@ -10,3 +11,4 @@
 #key:delphi.method.args
 
 #key:delphi.method.resultType
+#key:delphi.var.name

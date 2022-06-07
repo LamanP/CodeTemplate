@@ -27,11 +27,11 @@
     function Remove${Singular Name}(const Value: ${Data type});
 #code:Create/Destroy variable
     F${Plural Name} := ${List class}.Create;
-    FreeAndNil(F${${Plural Name}});
+    FreeAndNil(F{${Plural Name});
 #code:Getter/Setter (Impl)
 function ${Class}.Get${Singular Name}(const ${Index name}: ${Index type}): ${Data type};
 begin
-   Result := F${Plural Name}[${Index name}];
+  Result := F${Plural Name}[${Index name}];
 end;
 
 function ${Class}.Get${Singular Name}Count: Integer;
@@ -42,6 +42,7 @@ end;
 procedure ${Class}.Set${Singular Name}(const ${Index name}: ${Index type}; const Value: ${Data type});
 begin
 end;
+
 #code:Methods (Impl)
 procedure ${Class}.Insert${Singular Name}(const ${Index Name}: ${Index type}; const Value: ${Data type});
 begin
