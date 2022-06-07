@@ -490,7 +490,10 @@ begin // Parse
          if SameText(SectionData.SectionArgs[0], 'parameter') then
            ParseParameter
          else if SameText(SectionData.SectionArgs[0], 'code') then
-           ParseCodeSection
+           begin
+             ParseCodeSection;
+             FKey := nil;
+           end
          else if SameText(SectionData.SectionArgs[0], 'key') then
            begin
              if Length(SectionData.SectionArgs) < 2 then
