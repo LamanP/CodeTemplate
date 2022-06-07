@@ -9,6 +9,8 @@ uses
   uParameterFrame, Vcl.ComCtrls;
 
 type
+  EUsageError = class(Exception);
+
   TCodeTabSheet = class(TTabSheet)
   private
     FCodeSec: ICodeSection;
@@ -39,6 +41,12 @@ type
     LabelTemplateFileName: TLabel;
     ActionApplyEdits: TAction;
     Button3: TButton;
+    PanelEditFunctions: TPanel;
+    Button4: TButton;
+    ActionKeyFile: TAction;
+    ActionNewTemplate: TAction;
+    OpenDialogKeysFile: TOpenDialog;
+    Button5: TButton;
     procedure ActionOpenTemplateExecute(Sender: TObject);
     procedure ActionSaveTemplateExecute(Sender: TObject);
     procedure ActionSaveTemplateUpdate(Sender: TObject);
@@ -48,6 +56,8 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure ActionApplyEditsExecute(Sender: TObject);
     procedure ActionApplyEditsUpdate(Sender: TObject);
+    procedure ActionNewTemplateExecute(Sender: TObject);
+    procedure ActionKeyFileExecute(Sender: TObject);
   private
     FLoadingTemplate:Byte;
     FTemplate: ICodeTemplate;
@@ -68,7 +78,11 @@ type
     procedure SaveParameterHistory;
     function GetParameterHistoryFileName(const CreateFolder: Boolean): string;
     procedure LoadParameterHistory;
+    function CheckSaveEdits: Boolean;
+    function SaveTemplate: Boolean;
     property TemplateModified: Boolean read FTemplateModified write SetTemplateModified;
+  protected
+    procedure UpdateActions; override;
   public
     constructor Create(Owner: TComponent); override;
     destructor Destroy; override;
@@ -81,7 +95,7 @@ implementation
 
 {$R *.dfm}
 
-uses uBooleanParameterFrame, uStringParameterFrame, System.RegularExpressions, WinApi.RichEdit, Clipbrd;
+uses uBooleanParameterFrame, uStringParameterFrame, System.RegularExpressions, WinApi.RichEdit, Clipbrd, uFileNameUtils;
 
 const
   EM_GETSCROLLPOS=1245;
@@ -184,12 +198,19 @@ end;
 { TMainForm }
 
 procedure TMainForm.ActionSaveTemplateExecute(Sender: TObject);
+begin
+  SaveTemplate;
+end;
+
+function TMainForm.SaveTemplate: Boolean;
 var
   PlainText: TStringList;
 begin
   SaveDialogTemplate.FileName := OpenDialogTemplate.FileName;
-  if SaveDialogTemplate.Execute then
+  Result := SaveDialogTemplate.Execute;
+  if Result then
   begin
+    OpenDialogTemplate.FileName := SaveDialogTemplate.FileName;
     PlainText := TStringList.Create;
     try
       PlainText.Assign(RETemplate.Lines);
@@ -219,6 +240,27 @@ end;
 procedure TMainForm.ActionApplyEditsUpdate(Sender: TObject);
 begin
   (Sender as TAction).Enabled := TemplateModified;
+end;
+
+procedure TMainForm.ActionKeyFileExecute(Sender: TObject);
+resourcestring
+  SSaveBeforeChoosingKeysFile = 'You must save the template before choosing a keys file';
+begin
+  if Length(OpenDialogTemplate.FileName) = 0 then
+    raise EUsageError.Create(SSaveBeforeChoosingKeysFile);
+  OpenDialogTemplate.InitialDir := ExtractFilePath(OpenDialogKeysFile.FileName);
+  RETemplate.SelText := '#keyfile:' + MakePathRelative(OpenDialogTemplate.FileName,
+    OpenDialogKeysFile.FileName, False)+#13#10;
+end;
+
+procedure TMainForm.ActionNewTemplateExecute(Sender: TObject);
+begin
+  if CheckSaveEdits and SaveDialogTemplate.Execute then
+  begin
+    RETemplate.Clear;
+    OpenDialogTemplate.FileName := SaveDialogTemplate.filename;
+    TemplateModified := False;
+  end;
 end;
 
 procedure TMainForm.ActionOpenTemplateExecute(Sender: TObject);
@@ -298,6 +340,12 @@ begin
   SyntaxHighlights;
 end;
 
+procedure TMainForm.UpdateActions;
+begin
+  inherited;
+  RETemplate.ReadOnly := Length(OpenDialogTemplate.FileName) = 0;
+end;
+
 procedure TMainForm.DisplayTemplate(Text: string);
 begin
   RETemplate.Text := Text;
@@ -306,11 +354,26 @@ begin
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
-resourcestring
-  STemplateChanged = 'Template %s has changed. Do you wish to close the app and lose your changes?';
 begin
-  CanClose := not TemplateModified or
-    (MessageDlg(Format(STemplateChanged, [OpenDialogTemplate.FileName]), mtWarning, [mbYes, mbNo], 0, mbNo) = mrYes);
+  CanClose := CheckSaveEdits;
+end;
+
+// Result = safe to close
+function TMainForm.CheckSaveEdits: Boolean;
+resourcestring
+  STemplateChanged = 'Template %s has changed. Do you wish to save the edits?';
+begin
+  Result := not TemplateModified;
+  if not Result then
+  begin
+    case MessageDlg(Format(STemplateChanged, [OpenDialogTemplate.FileName]), mtWarning, [mbYes, mbNo], 0, mbYes) of
+      mrYes: if SaveDialogTemplate.Execute then
+               Result := SaveTemplate;
+      mrNo: Result := True;
+    else
+      Result := False;
+    end;
+  end;
 end;
 
 procedure TMainForm.LoadTemplateFile(const FileName: string);

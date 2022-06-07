@@ -77,9 +77,9 @@ object MainForm: TMainForm
       OnShow = TabSheetTemplateShow
       object RETemplate: TRichEdit
         Left = 0
-        Top = 0
+        Top = 41
         Width = 797
-        Height = 261
+        Height = 220
         Align = alClient
         BevelInner = bvNone
         Font.Charset = ANSI_CHARSET
@@ -92,6 +92,8 @@ object MainForm: TMainForm
         TabOrder = 0
         Zoom = 100
         OnChange = RETemplateChange
+        ExplicitTop = 112
+        ExplicitHeight = 152
       end
       object Panel2: TPanel
         Left = 0
@@ -132,6 +134,35 @@ object MainForm: TMainForm
           TabOrder = 1
         end
       end
+      object PanelEditFunctions: TPanel
+        Left = 0
+        Top = 0
+        Width = 797
+        Height = 41
+        Align = alTop
+        BevelOuter = bvNone
+        ParentBackground = False
+        TabOrder = 2
+        ExplicitLeft = 88
+        ExplicitTop = 32
+        ExplicitWidth = 185
+        object Button4: TButton
+          Left = 8
+          Top = 8
+          Width = 75
+          Height = 25
+          Action = ActionNewTemplate
+          TabOrder = 0
+        end
+        object Button5: TButton
+          Left = 89
+          Top = 8
+          Width = 75
+          Height = 25
+          Action = ActionKeyFile
+          TabOrder = 1
+        end
+      end
     end
   end
   object ActionList: TActionList
@@ -149,6 +180,16 @@ object MainForm: TMainForm
       Caption = 'Apply edits'
       OnExecute = ActionApplyEditsExecute
       OnUpdate = ActionApplyEditsUpdate
+    end
+    object ActionKeyFile: TAction
+      Category = 'Template editor'
+      Caption = 'Key file...'
+      OnExecute = ActionKeyFileExecute
+    end
+    object ActionNewTemplate: TAction
+      Category = 'Template editor'
+      Caption = 'New...'
+      OnExecute = ActionNewTemplateExecute
     end
   end
   object OpenDialogTemplate: TOpenDialog
@@ -170,5 +211,13 @@ object MainForm: TMainForm
     OnTimer = TimerSyntaxHighlightTimer
     Left = 448
     Top = 8
+  end
+  object OpenDialogKeysFile: TOpenDialog
+    DefaultExt = 'tpk'
+    FileName = 'keys.tpk'
+    Filter = 'Keys file|*.tpk|Any file|*.*'
+    Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
+    Left = 168
+    Top = 56
   end
 end

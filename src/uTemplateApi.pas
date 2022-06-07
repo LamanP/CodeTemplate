@@ -513,6 +513,7 @@ end;
 
 procedure TCodeTemplate.LoadKeys(FileName: string; const DefaultFolder: string);
 resourcestring
+  SNoSuchKeyFile = 'Keyfile ''%s''does not exist';
   SMaxHistoryMissing = 'Max. history missing from keys file';
   SKeyMissing = 'Key name missing from keys file';
   SMaxHistoryNotInteger = 'Max. history must be an integer in keys file';
@@ -530,8 +531,9 @@ begin
   try
     if Length(ExtractFilePath(FileName)) = 0 then
       FileName := IncludeTrailingPathDelimiter(DefaultFolder) + FileName;
-    if FileExists(FileName) then
-      Data.LoadFromFile(FileName);
+    if not FileExists(FileName) then
+      raise ETemplateSyntaxError.Create(SNoSuchKeyFile, I, [FileName]);
+    Data.LoadFromFile(FileName);
     for I := 0 to Data.Count - 1 do
     begin
       Line := Data[I];

@@ -6,7 +6,8 @@ uses
   uParameterFrame in 'uParameterFrame.pas' {ParameterFrame: TFrame},
   uTemplateApi in 'uTemplateApi.pas',
   uStringParameterFrame in 'uStringParameterFrame.pas' {StringParameterFrame: TFrame},
-  uBooleanParameterFrame in 'uBooleanParameterFrame.pas' {BooleanParameterFrame: TFrame};
+  uBooleanParameterFrame in 'uBooleanParameterFrame.pas' {BooleanParameterFrame: TFrame},
+  uFileNameUtils in '..\..\easybook\Source\Lib\uFileNameUtils.pas';
 
 {$R *.res}
 
