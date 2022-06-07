@@ -17,7 +17,7 @@
     procedure Set${Singular Name}(const ${Index name}: ${Index type}; const Value: ${Data type});
     function Get${Singular Name}Count: Integer;
 #code:Property (Decl)
-    property ${Plural Name}[const ${Index name}: ${Index type}]: ${Data type} read Get${Singular Name} write Set${Singular Name};#if:Default property: default;#endif
+    property ${Plural Name}[const ${Index name}: ${Index type}]: ${Data type} read Get${Singular Name} write Set${Singular Name};
     property ${Singular Name}Count: Integer read Get${Singular Name}Count;
 #code:Methods (Decl)
     procedure Insert${Singular Name}(const ${Index Name}: ${Index type}; const Value: ${Data type});
