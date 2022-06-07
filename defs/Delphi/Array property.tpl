@@ -1,4 +1,4 @@
-#keyfile:keys.txt
+#keyfile:keys.tpk
 #key:delphi.class
 #parameter:Class:string
 #key:delphi.property.name.singular
